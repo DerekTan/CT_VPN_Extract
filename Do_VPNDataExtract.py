@@ -42,7 +42,15 @@ class extractVPNCfg(QtCore.QThread):
     """ class extractVPNCfg """
 
     ptnInterface = re.compile(r'interface\s*(\S*)')
+    ptnDescription = re.compile(r'description\s*(\S*)')
+    ptnTermination = re.compile(r'q termination\s*(\S.*)')
+    ptnVPNInstance = re.compile(r'vpn-instance\s*(\S*)')
+    ptnIPAddress = re.compile(r'ip address\s*(\S.*)')
 
+    paramPtnDict = { 'description' : ptnDescription, \
+                     'termination' : ptnTermination, \
+                     'vpn-instance' : ptnInterface, \
+                     'ip address' : ptnIPAddress }
     # signal
     #sigProcessFiles = QtCore.pyqtSignal(str)
     sigRecord = QtCore.pyqtSignal(str)
@@ -102,6 +110,7 @@ class extractVPNCfg(QtCore.QThread):
         # start analyse
         isInterfaceStart = False
         item = {}
+        keyItemNum = 0
         with open(fn, 'r') as fp:
             for line in fp:
                 line = line.strip()
@@ -113,10 +122,22 @@ class extractVPNCfg(QtCore.QThread):
                         #reset item
                         isInterfaceStart = False
                         item = {}
+                        keyItemNum = 0
                     else:
                         #match interface internal parameters
-                        pass 
-                else:
+                        for title, ptn in self.paramPtnDict.items():
+                            result = ptn.search(line)
+                            if result:
+                                if title != 'description':
+                                    keyItemNum += 1
+                                if title == 'ip address':
+                                    if item.get(title) is None:
+                                        item[title] = [result.group(1)]
+                                    else:
+                                        item[title].append(result.group(1))
+                                else:
+                                    item[title] = result.group(1)
+                else: # interface not started, find the start
                     result = self.ptnInterface.match(line) 
                     if result:
                         item['interface'] = result.group(1)
@@ -188,5 +209,4 @@ if __name__ == "__main__":
         inParam = [fn]
     app.loadPara(inParam, 'out.txt')
     app.start()
-    while True:
-        pass
+    input('')
