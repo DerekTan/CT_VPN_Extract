@@ -7,37 +7,6 @@ import datetime
 import re
 import os
 
-def GenCommaJoinStr(l):
-    return ','.join(str(x) for x in l)
-
-def TimeDeltaToStr(timedelta):
-    s = ''
-    if timedelta.days > 0:
-        s += '%d days' % timedelta.days
-    seconds = timedelta.seconds % 60
-    minutes = (timedelta.seconds // 60) % 60
-    hours = timedelta.seconds // 3600
-    s += ' %02d:%02d:%02d.%d'%(hours, minutes, seconds, timedelta.microseconds)
-    return s
-
-def StrToTimeDelta( sTime):
-    """ convert hh:mm:ss.xxxxxx to timedelta """
-    l = sTime.split(':')
-    h = int(l[0])
-    m = int(l[1])
-    l = l[2].split('.')
-    s = int(l[0])
-    # microseconds from 0-999999, append '0' to make up 6 bytes
-    ms = int(l[1] + '0'*(6-len(l[1])) )
-
-    days = h // 24
-    seconds = (h%24)*3600 + m*60 + s
-    return datetime.timedelta(days, seconds, ms)
-
-def GenTimeStr(t):
-    return datetime.datetime.strftime(t, '%Y/%m/%d %H:%M:%S:%f')
-
-
 class extractVPNCfg(QtCore.QThread):
     """ class extractVPNCfg """
 
@@ -51,6 +20,7 @@ class extractVPNCfg(QtCore.QThread):
                      'termination' : ptnTermination, \
                      'vpn-instance' : ptnInterface, \
                      'ip address' : ptnIPAddress }
+
     # signal
     #sigProcessFiles = QtCore.pyqtSignal(str)
     sigRecord = QtCore.pyqtSignal(str)
@@ -64,14 +34,28 @@ class extractVPNCfg(QtCore.QThread):
         super(extractVPNCfg, self).__init__()
         self.path = None
 
-    def loadPara(self, path, outFile):
+    def loadPara(self, path, outFile = None):
         self.path = path
-        self.outFile = outFile
+        if outFile is None:
+            self.outFile = self.genOutFilename()
+        else:
+            self.outFile = outFile
+        print(self.outFile)
+
+    def genOutFilename(self):
+        t = datetime.datetime.now()
+        s = datetime.datetime.strftime(t, '%Y%m%d_%H%M%S')
+        filename = 'out_' + s + '.xls'
+        if type(self.path) is str: # input is a directory string
+            path = self.path
+        elif type(self.path) is list: # input is a file list
+            path = os.path.split(self.path[0])[0]
+        return os.path.join(path, filename)
+
 
     def run(self):
         if self.path is None:
             return
-
         if type(self.path) is str: # input is a directory string
             self.directoryExact(self.path)
         elif type(self.path) is list: # input is a file list
@@ -79,20 +63,6 @@ class extractVPNCfg(QtCore.QThread):
                 self.fileExact(fn)
             #if os.path.exists(self.path):
 
-#        self.outFile = self.genOutFile()
-#        self.tStartTime = datetime.datetime.now() # init value
-#        self.sigRecordClear.emit()
-#        self.sigLineProcessed.emit(0)
-#        self.fRecord('Preparing, please wait')
-#        totalLineNum = self.fGetFileLines(self.fn)
-#        self.sigTotalLineNum.emit(totalLineNum)
-#
-#        self.fStartTimer()
-#        self.fAnalyseCANLog() # main analyse
-#        self.fStopTimer()
-#
-#        # endof doStartAnalyse
-#        self.fSummary()
 
     def directoryExact(self, dn):
         if os.path.isdir(dn):
@@ -110,7 +80,6 @@ class extractVPNCfg(QtCore.QThread):
         # start analyse
         isInterfaceStart = False
         item = {}
-        keyItemNum = 0
         with open(fn, 'r') as fp:
             for line in fp:
                 line = line.strip()
@@ -128,8 +97,6 @@ class extractVPNCfg(QtCore.QThread):
                         for title, ptn in self.paramPtnDict.items():
                             result = ptn.search(line)
                             if result:
-                                if title != 'description':
-                                    keyItemNum += 1
                                 if title == 'ip address':
                                     if item.get(title) is None:
                                         item[title] = [result.group(1)]
@@ -144,7 +111,19 @@ class extractVPNCfg(QtCore.QThread):
                         isInterfaceStart = True
 
     def saveItem(self, item):
-        print(item)
+        if self.isValidItem(item):
+            self.writeItemToExcel(item)
+        else:
+            print(item)
+
+    def isValidItem(self, item):
+        # interface name must contains '.'
+        if '.' not in item[interface]:
+            return false
+        return True
+
+    def writeItemToExcel(self, item):
+        pass
 
 #    def fAnalyseCANLog(self):
 #        self.syncStart = False
@@ -207,6 +186,6 @@ if __name__ == "__main__":
         inParam = fn
     else:
         inParam = [fn]
-    app.loadPara(inParam, 'out.txt')
+    app.loadPara(inParam)
     app.start()
     input('')
