@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 # This program is developed with python 3.x
+# The following two types of input are avaliable:
+#     1. Directory path of VPRN .txt files
+#     2. the List of VPRN .txt files
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -260,7 +263,7 @@ if __name__ == "__main__":
     fn = input('Input file:')
     app = extractVPRNCfg()
     app.sigRecord.connect(print)
-    if os.path.isdir(fn):
+    if os.path.isdir(fn):gg
         inParam = fn
     else:
         inParam = [fn]

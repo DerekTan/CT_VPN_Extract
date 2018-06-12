@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 # This program is developed with python 3.x
+# The following two types of input are avaliable:
+#     1. Directory path of VPN .txt files
+#     2. the List of VPN .cfg files
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 import re
 import os
+
+# workbook
+from  openpyxl.workbook  import  Workbook  
+# ExcelWriter
+from  openpyxl.writer.excel  import  ExcelWriter  
+# convert number to column alpha-belta
+# from  openpyxl.cell  import  get_column_letter
 
 class extractVPNCfg(QtCore.QThread):
     """ class extractVPNCfg """
@@ -18,7 +28,7 @@ class extractVPNCfg(QtCore.QThread):
 
     paramPtnDict = { 'description' : ptnDescription, \
                      'termination' : ptnTermination, \
-                     'vpn-instance' : ptnInterface, \
+                     'vpn-instance' : ptnVPNInstance, \
                      'ip address' : ptnIPAddress }
 
     # signal
@@ -41,11 +51,20 @@ class extractVPNCfg(QtCore.QThread):
         else:
             self.outFile = outFile
         print(self.outFile)
+        self.workbook = Workbook()
+        # self.excelWriter = ExcelWriter(self.workbook)
+        # self.worksheet = self.workbook.create_sheet(title="VPN")
+        self.worksheet = self.workbook.active
+        self.worksheet.title = 'VPN'
+#        self.worksheet.append(['ip', 'interface', 'description', 'termination', 'vpn-instance', \
+#                'ip address', 'netmask', 'ip-address sub', 'netmask sub'])
+        self.worksheet.append(['ip', 'interface-1', 'interface-2', 'interface-3', 'description', 'pe-vid', 'ce-vid', 'vpn-instance', \
+                'ip address', 'netmask', 'ip-address sub', 'netmask sub'])
 
     def genOutFilename(self):
         t = datetime.datetime.now()
         s = datetime.datetime.strftime(t, '%Y%m%d_%H%M%S')
-        filename = 'out_' + s + '.xls'
+        filename = 'VPN_' + s + '.xlsx'
         if type(self.path) is str: # input is a directory string
             path = self.path
         elif type(self.path) is list: # input is a file list
@@ -62,6 +81,8 @@ class extractVPNCfg(QtCore.QThread):
             for fn in self.path:
                 self.fileExact(fn)
             #if os.path.exists(self.path):
+        # save the output file
+        self.saveOutFile()
 
 
     def directoryExact(self, dn):
@@ -77,16 +98,19 @@ class extractVPNCfg(QtCore.QThread):
         if os.path.splitext(fn)[-1] != '.cfg':
             return
 
+        fnBase = os.path.split(os.path.splitext(fn)[0])[-1]
+        print(fn)
+        print(fnBase)
         # start analyse
         isInterfaceStart = False
         item = {}
         with open(fn, 'r') as fp:
             for line in fp:
-                line = line.strip()
+                #line = line.strip()
                 if isInterfaceStart:
-                        # reach the end of the instance
-                        # save the item #TODO
-                    if line == '#': #reach the end
+                        # teach the end of the instance
+                    if line[0] == '#': #reach the end
+                        item['ip'] = fnBase
                         self.saveItem(item)
                         #reset item
                         isInterfaceStart = False
@@ -110,42 +134,76 @@ class extractVPNCfg(QtCore.QThread):
                         item['interface'] = result.group(1)
                         isInterfaceStart = True
 
+    def saveOutFile(self):
+        self.workbook.save(self.outFile)
+
     def saveItem(self, item):
-        if self.isValidItem(item):
+        if self.checkAndFormat(item):
             self.writeItemToExcel(item)
         else:
-            print(item)
+            pass
+            # print(item)
 
-    def isValidItem(self, item):
+    def checkAndFormat(self, item):
         # interface name must contains '.'
-        if '.' not in item[interface]:
+        if '.' not in item.get('interface'):
+            return False
+        # interface example: 'GigabitEthernet1/1/6.47'
+        # devide into: 'GigabitEthernet' '1/1/6' '47'
+        ifList = item.get('interface').rsplit('.', 1)
+        if len(ifList) != 2:
             return false
+        matchResult = re.match(r'(\D+)(.*)', ifList[0])
+        item['interface-1'] = matchResult.group(1)
+        item['interface-2'] = matchResult.group(2)
+        item['interface-3'] = ifList[1]
+        # one of termination, vpn-instance, ip address MUST be set
+        if item.get('termination') is None and item.get('vpn-instance') is None and item.get('ip address') is None:
+            return False
+        # format termination
+        termination = item.get('termination')
+        if termination:
+            vidList = termination.split()
+            if vidList[0] == 'vid':
+                item['termination'] = 'pe-vid -1 ce-vid %s' % vidList[1]
+        # convert termination to pe-vid & ce-vid
+        termination = item.get('termination')
+        if termination:
+            vidList = termination.split()
+            item['pe-vid'] = vidList[1]
+            item['ce-vid'] = vidList[3]
+
+        # format ip address
+        ipList = item.get('ip address')
+        if ipList is not None:
+            ip_mask = ipList[0].split()
+            item['ip address'] = ip_mask[0]
+            item['netmask'] = ip_mask[1]
+            if len(ipList) > 1:
+                ip_mask = ipList[1].split()
+                item['ip address sub'] = ip_mask[0]
+                item['netmask sub'] = ip_mask[1]
         return True
 
     def writeItemToExcel(self, item):
+        self.worksheet.append( [\
+                                item.get('ip'), \
+                                item.get('interface-1'), \
+                                item.get('interface-2'), \
+                                item.get('interface-3'), \
+                                item.get('description', ''), \
+                                #item.get('termination', ''), \
+                                item.get('pe-vid', ''), \
+                                item.get('ce-vid', ''), \
+                                item.get('vpn-instance', ''), \
+                                item.get('ip address', ''), \
+                                item.get('netmask', ''), \
+                                item.get('ip address sub', ''), \
+                                item.get('netmask sub', '')] \
+                                )
+        #, 'ip-address sub')
         pass
 
-#    def fAnalyseCANLog(self):
-#        self.syncStart = False
-#        self.cntRecv = [0, 0]
-#        self.recvNodes = [set(), set()]
-#        self.recvRedundant = [ [], [] ]
-#        self.syncNum = 0
-#        self.syncFailNum = 0
-#        self.nodesUpdated = False
-#
-#        self.sigRecordClear.emit()
-#        lastLineUpdateTime = datetime.datetime.now()
-#        tPastTime = datetime.timedelta(0, 0, 0)
-#        self.tSyncTime = datetime.timedelta(0, 0, 0)
-#
-#        with open(self.fn, 'r') as fp:
-#            self.lineProcess = 0
-#            self.logHeader = LogHeader()
-#            for line in fp:
-#                self.lineProcess += 1
-#        # save the time of last line
-#        self.logTime = tPastTime
 
     def fRecord(self, s):
         self.sigRecord.emit(s)
