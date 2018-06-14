@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # This program is developed with python 3.x
 # The following two types of input are avaliable:
-#     1. Directory path of VPRN .txt files
-#     2. the List of VPRN .txt files
+#     1. Directory path of IES .txt files
+#     2. the List of IES .txt files
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -17,15 +17,15 @@ from  openpyxl.writer.excel  import  ExcelWriter
 # convert number to column alpha-belta
 # from  openpyxl.cell  import  get_column_letter
 
-class extractVPRNCfg(QtCore.QThread):
-    """ class extractVPRNCfg """
+class extractIESCfg(QtCore.QThread):
+    """ class extractIESCfg """
 
-    # VPRN Patterns
-    ptnVPRN             = re.compile(r'\s{8}vprn\s*(\S*)')
-    ptnVPRNDescription  = re.compile(r'\s{12}description\s*"(.*)"')
-    ptnVPRNAutonomous   = re.compile(r'\s{12}autonomous-system\s*(\S*)')
-    ptnVPRNRouteDist    = re.compile(r'\s{12}route-distinguisher\s*(\S*)')
+    # IES Patterns
+    ptnIES             = re.compile(r'\s{8}ies\s*(\S*)')
+    ptnIESDescription  = re.compile(r'\s{12}description\s*"(.*)"')
     ptnInterface        = re.compile(r'\s{12}interface\s*"(.*)"')
+    ptnIESAutonomous   = re.compile(r'\s{12}autonomous-system\s*(\S*)')
+    ptnIESRouteDist    = re.compile(r'\s{12}route-distinguisher\s*(\S*)')
     ptnIFDescription    = re.compile(r'\s{16}description\s*"(.*)"')
     ptnIFAddress        = re.compile(r'\s{16}address\s*(\S*)')
     ptnIFSecondary      = re.compile(r'\s{16}secondary\s*(\S*)')
@@ -36,13 +36,11 @@ class extractVPRNCfg(QtCore.QThread):
     ptnIFIngressEnd     = re.compile(r'\s{20}exit')
     ptnIFEgressEnd      = re.compile(r'\s{20}exit')
     ptnInterfaceEnd     = re.compile(r'\s{12}exit')
-    ptnVPRNEnd          = re.compile(r'\s{8}exit')
-    #ptnVPRNInstance      = re.compile(r'vpn-instance\s*(\S*)')
-    #ptnIPAddress        = re.compile(r'ip address\s*(\S.*)')
+    ptnIESEnd          = re.compile(r'\s{8}exit')
 
-    vprnPtnDict = { 'description' : ptnVPRNDescription, \
-                     'route-distinguisher' : ptnVPRNRouteDist, \
-                     'autonomous-system' : ptnVPRNAutonomous, \
+    iesPtnDict = { 'description' : ptnIESDescription, \
+                     'route-distinguisher' : ptnIESRouteDist, \
+                     'autonomous-system' : ptnIESAutonomous, \
                      'interface' : ptnInterface }
     ifPtnDict = { 'description' : ptnIFDescription, \
                     'address' : ptnIFAddress, \
@@ -63,7 +61,7 @@ class extractVPRNCfg(QtCore.QThread):
 #    sigStopTimer = QtCore.pyqtSignal()
 
     def __init__(self):
-        super(extractVPRNCfg, self).__init__()
+        super(extractIESCfg, self).__init__()
         self.path = None
 
     def loadPara(self, path, outFile = None):
@@ -75,17 +73,17 @@ class extractVPRNCfg(QtCore.QThread):
         print(self.outFile)
         self.workbook = Workbook()
         # self.excelWriter = ExcelWriter(self.workbook)
-        # self.worksheet = self.workbook.create_sheet(title="VPRN")
+        # self.worksheet = self.workbook.create_sheet(title="IES")
         self.worksheet = self.workbook.active
-        self.worksheet.title = 'VPRN'
-        self.worksheet.append(['filename', 'vprn', 'description', 'autonomous-system', 'route-distinguisher', \
+        self.worksheet.title = 'IES'
+        self.worksheet.append(['filename', 'ies', 'description', 'autonomous-system', 'route-distinguisher', \
                 'interface:name', 'interface:description', 'interface:description header', 'interface:address', \
                 'interface:secondary address', 'interface:sap', 'interface:ingress qos', 'interface:egress qos'])
 
     def genOutFilename(self):
         t = datetime.datetime.now()
         s = datetime.datetime.strftime(t, '%Y%m%d_%H%M%S')
-        filename = 'VPRN_' + s + '.xlsx'
+        filename = 'IES_' + s + '.xlsx'
         if type(self.path) is str: # input is a directory string
             path = self.path
         elif type(self.path) is list: # input is a file list
@@ -123,16 +121,16 @@ class extractVPRNCfg(QtCore.QThread):
         print(fn)
         print(fnBase)
         # start analyse
-        isVPRNStart = False
-        isInterfaceStart = False # a VPRN may contain several Interfaces.
+        isIESStart = False
+        isInterfaceStart = False # a IES may contain several Interfaces.
         item = {}
         with open(fn, 'r') as fp:
             for line in fp:
                 #line = line.strip()
-                if isVPRNStart:
+                if isIESStart:
                     # reach the end of the instance
-                    if self.ptnVPRNEnd.match(line):
-                        isVPRNStart = False
+                    if self.ptnIESEnd.match(line):
+                        isIESStart = False
                     else:
                         if isInterfaceStart:
                             if self.ptnInterfaceEnd.match(line):
@@ -163,7 +161,7 @@ class extractVPRNCfg(QtCore.QThread):
                                             break
                         else:
                             #match interface internal parameters
-                            for title, ptn in self.vprnPtnDict.items():
+                            for title, ptn in self.iesPtnDict.items():
                                 result = ptn.match(line)
                                 if result:
                                     if title == 'interface':
@@ -174,12 +172,12 @@ class extractVPRNCfg(QtCore.QThread):
                                     break
 
                 else: # interface not started, find the start
-                    result = self.ptnVPRN.match(line) 
+                    result = self.ptnIES.match(line) 
                     if result:
                         item = {}
-                        item['vprn'] = result.group(1)
+                        item['ies'] = result.group(1)
                         item['filename'] = fnBase
-                        isVPRNStart = True
+                        isIESStart = True
 
     def saveOutFile(self):
         self.workbook.save(self.outFile)
@@ -213,7 +211,7 @@ class extractVPRNCfg(QtCore.QThread):
     def writeItemToExcel(self, item):
         self.worksheet.append( [\
                                 item.get('filename'), \
-                                item.get('vprn'), \
+                                item.get('ies'), \
                                 item.get('description', ''), \
                                 item.get('autonomous-system', ''), \
                                 item.get('route-distinguisher', ''), \
@@ -262,7 +260,7 @@ class extractVPRNCfg(QtCore.QThread):
 
 if __name__ == "__main__":
     fn = input('Input file:')
-    app = extractVPRNCfg()
+    app = extractIESCfg()
     app.sigRecord.connect(print)
     if os.path.isdir(fn):
         inParam = fn

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # This program is developed with python 3.x
 # The following two types of input are avaliable:
-#     1. Directory path of VPN .txt files
+#     1. Directory path of VPN .cfg files
 #     2. the List of VPN .cfg files
 
 from PyQt5 import QtCore, QtGui, QtWidgets
