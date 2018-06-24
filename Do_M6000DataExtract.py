@@ -25,7 +25,7 @@ class extractM6000Cfg(QtCore.QThread):
     ptnInterfaceEnd     = re.compile(r'\s*\$')
 
     ptnVlanID           = re.compile(r'\s*qinq internal-vlanid\s*(\S*)\s*external-vlanid\s*(\S*)')
-    ptnVlanRange        = re.compile(r'\s*qinq internal-vlan-range\s*(\S*)\s*external-vlan-range\s*(\S*)')
+    ptnVlanRange        = re.compile(r'\s*qinq range internal-vlan-range\s*(\S*)\s*external-vlan-range\s*(\S*)')
     ptnDescription      = re.compile(r'\s*description\s*(\S*)')
     ptnForwarding       = re.compile(r'\s*ip vrf forwarding\s*(\S*)')
     ptnIPAddress        = re.compile(r'\s*ip address\s*(\S*)\s*(\S*)')
