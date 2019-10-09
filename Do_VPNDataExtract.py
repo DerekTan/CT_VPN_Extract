@@ -4,7 +4,7 @@
 #     1. Directory path of VPN .cfg files
 #     2. the List of VPN .cfg files
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+#from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 import re
@@ -17,23 +17,30 @@ from  openpyxl.writer.excel  import  ExcelWriter
 # convert number to column alpha-belta
 # from  openpyxl.cell  import  get_column_letter
 
-class extractVPNCfg(QtCore.QThread):
+#class extractVPNCfg(QtCore.QThread):
+class extractVPNCfg():
     """ class extractVPNCfg """
 
     ptnInterface = re.compile(r'interface\s*(\S*)')
+    ptnShutdown = re.compile(r'shutdown')
     ptnDescription = re.compile(r'description\s*(\S*)')
     ptnTermination = re.compile(r'q termination\s*(\S.*)')
     ptnVPNInstance = re.compile(r'vpn-instance\s*(\S*)')
     ptnIPAddress = re.compile(r'ip address\s*(\S.*)')
+    ptnQosInbound = re.compile(r'qos-profile\s*(\d\S*)\s*inbound')
+    ptnQosOutbound = re.compile(r'qos-profile\s*(\d\S*)\s*outbound')
 
     paramPtnDict = { 'description' : ptnDescription, \
+                     'shutdown' : ptnShutdown, \
                      'termination' : ptnTermination, \
                      'vpn-instance' : ptnVPNInstance, \
+                     'qos inbound' : ptnQosInbound, \
+                     'qos outbound' : ptnQosOutbound, \
                      'ip address' : ptnIPAddress }
 
     # signal
     #sigProcessFiles = QtCore.pyqtSignal(str)
-    sigRecord = QtCore.pyqtSignal(str)
+    # sigRecord = QtCore.pyqtSignal(str)
 #    sigRecordClear = QtCore.pyqtSignal()
 #    sigLineProcessed = QtCore.pyqtSignal(int)
 #    sigTotalLineNum = QtCore.pyqtSignal(int)
@@ -58,8 +65,8 @@ class extractVPNCfg(QtCore.QThread):
         self.worksheet.title = 'VPN'
 #        self.worksheet.append(['ip', 'interface', 'description', 'termination', 'vpn-instance', \
 #                'ip address', 'netmask', 'ip-address sub', 'netmask sub'])
-        self.worksheet.append(['ip', 'interface-1', 'interface-2', 'interface-3', 'description', 'pe-vid', 'ce-vid', 'vpn-instance', \
-                'ip address', 'netmask', 'ip-address sub', 'netmask sub'])
+        self.worksheet.append(['ip', 'interface-1', 'interface-2', 'interface-3', 'description', 'is shutdown', 'pe-vid', 'ce-vid', 'vpn-instance', \
+                'ip address', 'netmask', 'ip-address sub', 'netmask sub', 'qos inbound', 'qos outbound'])
 
     def genOutFilename(self):
         t = datetime.datetime.now()
@@ -98,9 +105,13 @@ class extractVPNCfg(QtCore.QThread):
         if os.path.splitext(fn)[-1] != '.cfg':
             return
 
+        print('dealing with %s' % fn)
         fnBase = os.path.split(os.path.splitext(fn)[0])[-1]
-        print(fn)
-        print(fnBase)
+        if fnBase == 'vrpcfg':
+            ip = os.path.splitext(fn)[0].split('\\')[-2]
+        else:
+            ip = fnBase
+        # print(fnBase)
         # start analyse
         isInterfaceStart = False
         item = {}
@@ -108,9 +119,9 @@ class extractVPNCfg(QtCore.QThread):
             for line in fp:
                 #line = line.strip()
                 if isInterfaceStart:
-                        # teach the end of the instance
+                    # reach the end of the instance
                     if line[0] == '#': #reach the end
-                        item['ip'] = fnBase
+                        item['ip'] = ip
                         self.saveItem(item)
                         #reset item
                         isInterfaceStart = False
@@ -126,6 +137,11 @@ class extractVPNCfg(QtCore.QThread):
                                         item[title] = [result.group(1)]
                                     else:
                                         item[title].append(result.group(1))
+                                elif title == 'shutdown':
+                                    if 'undo' in line:
+                                        item[title] = 'N'
+                                    else:
+                                        item[title] = 'Y'
                                 else:
                                     item[title] = result.group(1)
                 else: # interface not started, find the start
@@ -192,6 +208,7 @@ class extractVPNCfg(QtCore.QThread):
                                 item.get('interface-2'), \
                                 item.get('interface-3'), \
                                 item.get('description', ''), \
+                                item.get('shutdown', ''), \
                                 #item.get('termination', ''), \
                                 item.get('pe-vid', ''), \
                                 item.get('ce-vid', ''), \
@@ -199,14 +216,18 @@ class extractVPNCfg(QtCore.QThread):
                                 item.get('ip address', ''), \
                                 item.get('netmask', ''), \
                                 item.get('ip address sub', ''), \
-                                item.get('netmask sub', '')] \
+                                item.get('netmask sub', ''), \
+                                item.get('qos inbound', ''), \
+                                item.get('qos outbound', ''), \
+                                ] \
                                 )
         #, 'ip-address sub')
         pass
 
 
     def fRecord(self, s):
-        self.sigRecord.emit(s)
+        #self.sigRecord.emit(s)
+        print(s)
 
     def fNowPastTimeStr(self):
         delta = datetime.datetime.now() - self.tAnalyseStartTime
@@ -239,11 +260,11 @@ class extractVPNCfg(QtCore.QThread):
 if __name__ == "__main__":
     fn = input('Input file:')
     app = extractVPNCfg()
-    app.sigRecord.connect(print)
+    # app.sigRecord.connect(print)
     if os.path.isdir(fn):
         inParam = fn
     else:
         inParam = [fn]
     app.loadPara(inParam)
-    app.start()
+    app.run()
     input('')

@@ -4,7 +4,7 @@
 #     1. Directory path of VPRN .txt files
 #     2. the List of VPRN .txt files
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+#from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 import re
@@ -17,7 +17,8 @@ from  openpyxl.writer.excel  import  ExcelWriter
 # convert number to column alpha-belta
 # from  openpyxl.cell  import  get_column_letter
 
-class extractVPRNCfg(QtCore.QThread):
+#class extractVPRNCfg(QtCore.QThread):
+class extractVPRNCfg():
     """ class extractVPRNCfg """
 
     # VPRN Patterns
@@ -54,7 +55,7 @@ class extractVPRNCfg(QtCore.QThread):
 
     # signal
     # sigProcessFiles = QtCore.pyqtSignal(str)
-    sigRecord = QtCore.pyqtSignal(str)
+    # sigRecord = QtCore.pyqtSignal(str)
 
 #    sigRecordClear = QtCore.pyqtSignal()
 #    sigLineProcessed = QtCore.pyqtSignal(int)
@@ -230,7 +231,8 @@ class extractVPRNCfg(QtCore.QThread):
         pass
 
     def fRecord(self, s):
-        self.sigRecord.emit(s)
+        #self.sigRecord.emit(s)
+        print(s)
 
     def fNowPastTimeStr(self):
         delta = datetime.datetime.now() - self.tAnalyseStartTime
@@ -263,11 +265,11 @@ class extractVPRNCfg(QtCore.QThread):
 if __name__ == "__main__":
     fn = input('Input file:')
     app = extractVPRNCfg()
-    app.sigRecord.connect(print)
+    #app.sigRecord.connect(print)
     if os.path.isdir(fn):
         inParam = fn
     else:
         inParam = [fn]
     app.loadPara(inParam)
-    app.start()
+    app.run()
     input('')

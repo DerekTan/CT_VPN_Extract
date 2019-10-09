@@ -4,7 +4,7 @@
 #     1. Directory path of IES .txt files
 #     2. the List of IES .txt files
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+#from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 import re
@@ -17,15 +17,17 @@ from  openpyxl.writer.excel  import  ExcelWriter
 # convert number to column alpha-belta
 # from  openpyxl.cell  import  get_column_letter
 
-class extractIESCfg(QtCore.QThread):
+#class extractIESCfg(QtCore.QThread):
+class extractIESCfg():
     """ class extractIESCfg """
 
     # IES Patterns
-    ptnIES             = re.compile(r'\s{8}ies\s*(\S*)')
-    ptnIESDescription  = re.compile(r'\s{12}description\s*"(.*)"')
+    ptnIES              = re.compile(r'\s{8}ies\s*(\S*)')
+    ptnIESDescription   = re.compile(r'\s{12}description\s*"(.*)"')
     ptnInterface        = re.compile(r'\s{12}interface\s*"(.*)"')
-    ptnIESAutonomous   = re.compile(r'\s{12}autonomous-system\s*(\S*)')
-    ptnIESRouteDist    = re.compile(r'\s{12}route-distinguisher\s*(\S*)')
+    ptnIESAutonomous    = re.compile(r'\s{12}autonomous-system\s*(\S*)')
+    ptnIESRouteDist     = re.compile(r'\s{12}route-distinguisher\s*(\S*)')
+    ptnIFShutdown       = re.compile(r'\s{16}shutdown')
     ptnIFDescription    = re.compile(r'\s{16}description\s*"(.*)"')
     ptnIFAddress        = re.compile(r'\s{16}address\s*(\S*)')
     ptnIFSecondary      = re.compile(r'\s{16}secondary\s*(\S*)')
@@ -36,13 +38,14 @@ class extractIESCfg(QtCore.QThread):
     ptnIFIngressEnd     = re.compile(r'\s{20}exit')
     ptnIFEgressEnd      = re.compile(r'\s{20}exit')
     ptnInterfaceEnd     = re.compile(r'\s{12}exit')
-    ptnIESEnd          = re.compile(r'\s{8}exit')
+    ptnIESEnd           = re.compile(r'\s{8}exit')
 
     iesPtnDict = { 'description' : ptnIESDescription, \
                      'route-distinguisher' : ptnIESRouteDist, \
                      'autonomous-system' : ptnIESAutonomous, \
                      'interface' : ptnInterface }
-    ifPtnDict = { 'description' : ptnIFDescription, \
+    ifPtnDict = {   'shutdown' : ptnIFShutdown, \
+                    'description' : ptnIFDescription, \
                     'address' : ptnIFAddress, \
                     'secondary' : ptnIFSecondary, \
                     'sap' : ptnIFSap, \
@@ -52,7 +55,7 @@ class extractIESCfg(QtCore.QThread):
 
     # signal
     # sigProcessFiles = QtCore.pyqtSignal(str)
-    sigRecord = QtCore.pyqtSignal(str)
+    # sigRecord = QtCore.pyqtSignal(str)
 
 #    sigRecordClear = QtCore.pyqtSignal()
 #    sigLineProcessed = QtCore.pyqtSignal(int)
@@ -77,7 +80,8 @@ class extractIESCfg(QtCore.QThread):
         self.worksheet = self.workbook.active
         self.worksheet.title = 'IES'
         self.worksheet.append(['filename', 'ies', 'description', 'autonomous-system', 'route-distinguisher', \
-                'interface:name', 'interface:description', 'interface:description header', 'interface:address', \
+                'interface:name', 'interface: is shutdown', 'interface:description', 'interface:description header', \
+                'interface:address', \
                 'interface:secondary address', 'interface:sap', 'interface:ingress qos', 'interface:egress qos'])
 
     def genOutFilename(self):
@@ -147,6 +151,8 @@ class extractIESCfg(QtCore.QThread):
                                                 else:
                                                     item['interface'][title] = []
                                                 item['interface'][title].append(result.group(1))
+                                            elif title == 'shutdown':
+                                                item['interface'][title] = 'Y'
                                             else:
                                                 if title == 'ingress' or title == 'egress':
                                                     xgress = title
@@ -216,6 +222,7 @@ class extractIESCfg(QtCore.QThread):
                                 item.get('autonomous-system', ''), \
                                 item.get('route-distinguisher', ''), \
                                 item['interface'].get('name', ''), \
+                                item['interface'].get('shutdown', ''), \
                                 item['interface'].get('description', ''), \
                                 item['interface'].get('description header', ''), \
                                 item['interface'].get('address', ''), \
@@ -228,7 +235,8 @@ class extractIESCfg(QtCore.QThread):
         pass
 
     def fRecord(self, s):
-        self.sigRecord.emit(s)
+        #self.sigRecord.emit(s)
+        print(s)
 
     def fNowPastTimeStr(self):
         delta = datetime.datetime.now() - self.tAnalyseStartTime
@@ -261,11 +269,12 @@ class extractIESCfg(QtCore.QThread):
 if __name__ == "__main__":
     fn = input('Input file:')
     app = extractIESCfg()
-    app.sigRecord.connect(print)
+    # app.sigRecord.connect(print)
     if os.path.isdir(fn):
         inParam = fn
     else:
         inParam = [fn]
     app.loadPara(inParam)
-    app.start()
+    #app.start()
+    app.run()
     input('')

@@ -4,7 +4,7 @@
 #     1. Directory path of M6000 .dat files
 #     2. the List of M6000 .dat files
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+# from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 import re
@@ -17,7 +17,8 @@ from  openpyxl.writer.excel  import  ExcelWriter
 # convert number to column alpha-belta
 # from  openpyxl.cell  import  get_column_letter
 
-class extractM6000Cfg(QtCore.QThread):
+#class extractM6000Cfg(QtCore.QThread):
+class extractM6000Cfg():
     """ class extractM6000Cfg """
 
     # Patterns
@@ -40,7 +41,7 @@ class extractM6000Cfg(QtCore.QThread):
 
     # signal
     # sigProcessFiles = QtCore.pyqtSignal(str)
-    sigRecord = QtCore.pyqtSignal(str)
+    # sigRecord = QtCore.pyqtSignal(str)
 
 #    sigRecordClear = QtCore.pyqtSignal()
 #    sigLineProcessed = QtCore.pyqtSignal(int)
@@ -188,7 +189,8 @@ class extractM6000Cfg(QtCore.QThread):
         pass
 
     def fRecord(self, s):
-        self.sigRecord.emit(s)
+        #self.sigRecord.emit(s)
+        print(s)
 
     def fNowPastTimeStr(self):
         delta = datetime.datetime.now() - self.tAnalyseStartTime
@@ -221,11 +223,11 @@ class extractM6000Cfg(QtCore.QThread):
 if __name__ == "__main__":
     fn = input('Input file:')
     app = extractM6000Cfg()
-    app.sigRecord.connect(print)
+    #app.sigRecord.connect(print)
     if os.path.isdir(fn):
         inParam = fn
     else:
         inParam = [fn]
     app.loadPara(inParam)
-    app.start()
+    app.run()
     input('')
